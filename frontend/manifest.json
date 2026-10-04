@@ -1,0 +1,11 @@
+{
+  "name": "Alejandro Shroom Map",
+  "short_name": "Shroom Map",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#2a231f",
+  "theme_color": "#2a231f",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

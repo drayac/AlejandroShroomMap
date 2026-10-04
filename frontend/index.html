@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Alejandro Shroom Map</title>
+  <meta name="theme-color" content="#2a231f" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+  <link rel="stylesheet" href="style.css?v=4" />
+</head>
+<body>
+  <div id="map"></div>
+
+  <div id="title-overlay">
+    <h1>Alejandro<br />Shroom&nbsp;Map</h1>
+  </div>
+
+  <button id="locate-btn" class="fab fab-locate" title="Use my location" aria-label="Use my location">📍</button>
+  <button id="layers-btn" class="fab fab-secondary fab-menu-item" title="Map style" aria-label="Map style">🧭</button>
+  <button id="gallery-btn" class="fab fab-secondary fab-menu-item" title="Gallery" aria-label="Gallery">🖼️</button>
+  <button id="tree-btn" class="fab fab-secondary fab-menu-item" title="Tree of life" aria-label="Tree of life">🌳</button>
+  <button id="add-btn" class="fab fab-secondary fab-menu-item" title="Add a mushroom" aria-label="Add a mushroom">＋</button>
+  <button id="menu-toggle-btn" class="fab fab-menu-toggle" title="Menu" aria-label="Menu">☰</button>
+
+  <div id="layers-panel" class="sheet hidden">
+    <div class="sheet-handle"></div>
+    <h2>Map style</h2>
+    <label class="field-label" for="map-style-select">Base map</label>
+    <select id="map-style-select"></select>
+    <p class="hint map-credits">
+      Map credits: tiles by <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a>,
+      <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">&copy; OpenMapTiles</a>, data from
+      <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors ·
+      species records and taxonomy: <a href="https://www.gbif.org" target="_blank" rel="noopener">GBIF</a> ·
+      evolutionary tree: <a href="https://doi.org/10.1038/s41559-019-0834-1" target="_blank" rel="noopener">Varga et al. 2019</a> and <a href="https://opentreeoflife.org" target="_blank" rel="noopener">Open Tree of Life</a> ·
+      ecosystems: <a href="https://ecoregions.appspot.com" target="_blank" rel="noopener">RESOLVE Ecoregions 2017</a>
+      (Dinerstein et al. 2017, CC BY 4.0) · identification by Google Gemini.
+    </p>
+    <button class="btn-secondary close-sheet">Close</button>
+  </div>
+
+  <div id="add-panel" class="sheet hidden">
+    <div class="sheet-handle"></div>
+    <h2>Add a mushroom</h2>
+
+    <input type="file" id="photo-input" accept="image/*" class="hidden" />
+    <div id="photo-step" class="hidden">
+      <img id="photo-preview" class="hidden" alt="Preview" />
+      <button type="button" id="retake-photo-btn" class="btn-secondary">📷 Choose a photo</button>
+    </div>
+
+    <div id="step-location" class="hidden">
+      <p class="hint">Where did you find it?</p>
+      <button id="use-gps-btn" class="btn-primary">📍 Use my current location</button>
+      <button id="pick-map-btn" class="btn-secondary">🗺️ Choose on the map</button>
+      <p id="location-status" class="hint"></p>
+    </div>
+
+    <form id="leaf-form" class="hidden">
+      <p class="hint" id="coords-readout"></p>
+
+      <label class="switch-row hidden" id="ai-toggle-row">
+        <span>🤖 Automatic identification</span>
+        <input type="checkbox" id="toggle-ai" checked />
+      </label>
+      <p class="hint" id="ai-credits-hint"></p>
+      <p class="hint" id="ai-status"></p>
+      <button type="button" id="retry-ai-btn" class="btn-secondary hidden">🔄 Retry AI identification</button>
+      <div id="identification-preview"></div>
+      <p class="hint safety-note">Never eat a wild mushroom because of an app. Photo identification of fungi is unreliable, and this app gives no edibility advice.</p>
+
+      <div id="leaf-details" class="hidden">
+        <label class="field-label" for="title-input">Common name</label>
+        <input type="text" id="title-input" placeholder="e.g. Fly agaric (leave blank for &quot;unknown&quot;)" />
+
+        <label class="field-label" for="scientific-input">Scientific name</label>
+        <input type="text" id="scientific-input" placeholder="Genus species, e.g. Amanita muscaria" autocapitalize="off" autocorrect="off" spellcheck="false" />
+
+        <label class="field-label" for="description-input">Notes</label>
+        <textarea id="description-input" rows="3" placeholder="Cap, gills or pores, stem, what it grows on, anything notable... (leave blank for &quot;unknown&quot;)"></textarea>
+
+        <div id="passphrase-row">
+          <label class="field-label" for="passphrase-input">Shared passphrase</label>
+          <input type="password" id="passphrase-input" autocomplete="off" />
+        </div>
+
+        <p id="submit-status" class="hint"></p>
+        <button type="submit" id="submit-btn" class="btn-primary">Add mushroom</button>
+      </div>
+    </form>
+
+    <button type="button" class="btn-secondary close-sheet">Cancel</button>
+  </div>
+
+  <div id="gallery-panel" class="sheet sheet-tall hidden">
+    <div class="sheet-handle"></div>
+    <h2>Gallery</h2>
+    <div id="gallery-list"></div>
+    <button class="btn-secondary close-sheet">Close</button>
+  </div>
+
+  <div id="tree-panel" class="sheet sheet-tall hidden">
+    <div class="sheet-handle"></div>
+    <h2>Tree of life</h2>
+    <div id="tree-normal-view">
+      <label class="field-label" for="tree-color-select">Color species by</label>
+      <select id="tree-color-select"></select>
+      <div id="tree-plot"></div>
+      <div id="tree-selected"></div>
+      <div id="tree-legend"></div>
+      <p class="hint" id="tree-summary"></p>
+    </div>
+    <div id="tree-detail" class="hidden"></div>
+    <button class="btn-secondary close-sheet">Close</button>
+  </div>
+
+  <div id="pick-hint" class="hidden">Tap the map to place the pin</div>
+  <div id="toast" class="hidden"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script src="app.js?v=4"></script>
+</body>
+</html>

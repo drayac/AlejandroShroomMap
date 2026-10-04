@@ -1,0 +1,560 @@
+:root {
+  --bg: #2a231f;
+  --accent: #8a624b;
+  --accent-dark: #6e4c39;
+  --panel: #f8f4f2;
+  --text-dark: #2a231f;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+}
+
+#map {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Title overlay */
+#title-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  padding-top: max(14vh, 60px);
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+  z-index: 5;
+  text-align: center;
+}
+
+#title-overlay h1 {
+  margin: 0;
+  color: #fff;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 500;
+  font-size: clamp(28px, 8vw, 52px);
+  line-height: 1.15;
+  text-shadow: 0 2px 18px rgba(0,0,0,0.65), 0 1px 3px rgba(0,0,0,0.5);
+  letter-spacing: 0.5px;
+}
+
+
+/* Floating action buttons */
+.fab {
+  position: absolute;
+  right: 16px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+  cursor: pointer;
+  z-index: 6;
+}
+
+.fab-secondary {
+  background: var(--text-dark);
+  color: #fff;
+}
+
+/* layers/gallery/tree/add stay hidden until the single toggle
+   button below them is tapped, instead of several buttons always stacked on
+   screen - tapping any of them (or tapping the map/closing a sheet) folds
+   them back away. Same size as the toggle itself so the whole stack lines
+   up cleanly, and closer together than the old always-visible stack. */
+.fab-menu-item {
+  width: 55px;
+  height: 55px;
+  font-size: 23px;
+  opacity: 0;
+  transform: scale(0.6);
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+body.menu-open .fab-menu-item {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+#add-btn { bottom: calc(24px + 1*70px); font-size: 25px; }
+#tree-btn { bottom: calc(24px + 2*70px); }
+#gallery-btn { bottom: calc(24px + 3*70px); }
+#layers-btn { bottom: calc(24px + 4*70px); }
+
+.fab-menu-toggle {
+  bottom: 24px;
+  width: 55px;
+  height: 55px;
+  background: var(--text-dark);
+  color: #fff;
+  font-size: 24px;
+  transition: transform 0.18s ease;
+}
+body.menu-open .fab-menu-toggle {
+  transform: rotate(90deg);
+}
+
+/* Off on its own, opposite corner from the other controls - it's a map
+   navigation aid (like the zoom control), not a feature panel, so it
+   doesn't belong folded in with the others. Same dark color as everything
+   else, just smaller/softened to stay out of the way. */
+.fab-locate {
+  left: 16px;
+  right: auto;
+  bottom: 20px;
+  width: 50px;
+  height: 50px;
+  font-size: 20px;
+  background: rgba(31, 42, 31, 0.85);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+/* Bottom sheets */
+.sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 82vh;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  background: var(--panel);
+  color: var(--text-dark);
+  border-radius: 18px 18px 0 0;
+  padding: 10px 20px 28px;
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.3);
+  z-index: 20;
+  transform: translateY(0);
+  transition: transform 0.25s ease;
+}
+.sheet.hidden { transform: translateY(110%); pointer-events: none; }
+.sheet-tall { max-height: 78vh; }
+
+/* The tree's labels are sized in SVG units against its own box, so on a wide
+   desktop browser it would otherwise render much larger than on a phone. The
+   panel itself stays full-width like every other sheet - only the tree box is
+   capped (and centered) on wider viewports, keeping text close to phone scale. */
+@media (min-width: 640px) {
+  #tree-plot {
+    max-width: 520px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+/* The visible bar is tiny (by design, a subtle affordance) but it still
+   needs to be easy to actually grab on a touchscreen - the real hit target
+   is the full-width strip around it, drawn via ::after so the look is
+   unchanged. touch-action: none keeps the browser from trying to scroll
+   the page while a drag is in progress (see the swipe-to-dismiss JS). */
+.sheet-handle {
+  width: 100%;
+  height: 28px;
+  margin: 0 0 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  touch-action: none;
+}
+.sheet-handle::after {
+  content: "";
+  width: 40px;
+  height: 4px;
+  background: #d8cbc3;
+  border-radius: 2px;
+}
+
+.sheet h2 {
+  margin: 0 0 12px;
+  font-size: 19px;
+}
+
+.hint {
+  font-size: 13px;
+  color: #74675f;
+  margin: 4px 0 12px;
+}
+
+.btn-primary, .btn-secondary {
+  width: 100%;
+  display: block;
+  padding: 13px;
+  border-radius: 10px;
+  border: none;
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:disabled { background: #d8cbc3; color: #8b7e76; }
+.btn-secondary { background: #ede5e0; color: var(--text-dark); }
+
+.field-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin: 12px 0 6px;
+}
+
+#leaf-form input[type="file"],
+#leaf-form input[type="text"],
+#leaf-form textarea,
+#leaf-form input[type="password"] {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #d8cbc3;
+  font-size: 14px;
+  font-family: inherit;
+  background: #fff;
+}
+
+#photo-preview {
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  border-radius: 10px;
+  margin-top: 10px;
+}
+
+
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  font-size: 15px;
+  border-bottom: 1px solid #eae0db;
+}
+.switch-row input { width: 20px; height: 20px; }
+
+#pick-hint {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.7);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  z-index: 15;
+}
+
+#toast {
+  position: absolute;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(20,20,20,0.9);
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 20px;
+  font-size: 13px;
+  z-index: 30;
+  max-width: 85vw;
+  text-align: center;
+}
+
+.hidden { display: none !important; }
+
+/* MapLibre popup styling */
+.maplibregl-popup-content {
+  border-radius: 12px;
+  padding: 10px;
+  max-width: 260px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.leaf-popup img {
+  width: 100%;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  display: block;
+}
+.leaf-popup .title { font-size: 15px; font-weight: 700; margin-top: 2px; }
+.leaf-popup .desc { font-size: 13px; margin: 4px 0; }
+.leaf-popup .meta { font-size: 11px; color: #888; }
+.safety-note { font-size: 11px; opacity: 0.8; }
+
+/* AI identification bar chart (add-leaf preview + description) */
+.bar-chart { margin: 8px 0; }
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 3px 0;
+}
+.bar-label {
+  flex: 0 0 auto;
+  width: 118px;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bar-track {
+  flex: 1;
+  height: 9px;
+  background: #eae0db;
+  border-radius: 5px;
+  overflow: hidden;
+}
+.bar-fill { height: 100%; border-radius: 5px; }
+.bar-pct { flex: 0 0 auto; width: 32px; font-size: 11px; color: #888; text-align: right; }
+
+.leaf-marker {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #8a624b;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  overflow: hidden;
+}
+.leaf-marker img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Slightly zoomed in - a straight full-frame thumbnail at this size tends
+     to be mostly background with the leaf a small blob in the middle;
+     cropping in a bit keeps the leaf itself legible. */
+  transform: scale(1.35);
+}
+
+.map-credits {
+  font-size: 11px;
+  line-height: 1.5;
+  margin: 14px 0 16px;
+}
+.map-credits a { color: inherit; }
+
+#map-style-select,
+#tree-color-select {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #d8cbc3;
+  font-size: 14px;
+  font-family: inherit;
+  background: #fff;
+  margin-bottom: 14px;
+}
+
+/* Gallery */
+.gallery-country-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #eae0db;
+  cursor: pointer;
+}
+.gallery-country-row img,
+.gallery-country-row div:first-child {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+  background: #eae0db;
+}
+.gallery-country-name { flex: 1; font-size: 15px; font-weight: 700; }
+.gallery-country-count { font-size: 13px; color: #8b7e76; white-space: nowrap; }
+.gallery-detail { padding: 4px 0 16px; }
+.gallery-detail .leaf-popup { font-size: inherit; }
+.gallery-detail .title { font-size: 18px; }
+.gallery-detail .desc { font-size: 14px; line-height: 1.5; }
+.gallery-back-btn {
+  display: block;
+  border: none;
+  background: transparent;
+  color: var(--accent, #6e4c39);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 4px 0 12px;
+  cursor: pointer;
+}
+.gallery-country {
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+  font-size: 15px;
+  font-weight: 800;
+  color: #2a231f;
+  padding: 14px 0 4px;
+  border-bottom: 2px solid #eae0db;
+}
+.gallery-month {
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #8b7e76;
+  padding: 12px 0 6px;
+}
+.gallery-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #eae0db;
+  cursor: pointer;
+}
+.gallery-row img {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+  background: #eae0db;
+}
+.gallery-row-text { min-width: 0; }
+.gallery-row .title,
+.gallery-row .desc {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gallery-row .title { font-size: 14px; font-weight: 700; }
+.gallery-row .desc { font-size: 13px; color: #63564f; margin-top: 1px; }
+.gallery-row .meta { font-size: 12px; color: #8b7e76; margin-top: 2px; }
+.gallery-empty { text-align: center; color: #8b7e76; padding: 40px 0; }
+
+/* ---------- Leaf description: names, classification, ecosystem ---------- */
+.leaf-popup .sci,
+.gallery-row .sci,
+.tree-selected-head .sci {
+  font-size: 13px;
+  color: #6e4c39;
+  margin-top: 1px;
+}
+.gallery-row .sci { font-size: 12.5px; }
+
+.classification { margin: 8px 0; }
+.rank-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px 12px;
+  font-size: 12px;
+}
+.rank-label { color: #8b7e76; }
+.rank-value { font-weight: 600; overflow-wrap: anywhere; }
+
+.ecosystem { font-size: 12px; margin: 8px 0 6px; line-height: 1.4; }
+.ecosystem .meta { font-size: 11px; color: #8b7e76; }
+
+/* "Use <alternative species>" chips under the AI identification */
+.alt-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 4px; }
+.alt-chip {
+  border: 1px solid #d8cbc3;
+  background: #fff;
+  color: var(--text-dark);
+  border-radius: 14px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* ---------- Tree of life ---------- */
+#tree-plot {
+  width: 100%;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  padding: 6px 0;
+}
+#tree-plot svg { display: block; }
+.tree-branch { stroke: #9a8b82; stroke-width: 1.4; stroke-linecap: round; }
+.tree-clade {
+  font-size: 8.5px;
+  fill: #8b7e76;
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 2.5px;
+  pointer-events: none;
+}
+.tree-name { font-size: 10.5px; fill: var(--text-dark); pointer-events: none; }
+.tree-hit { fill: transparent; cursor: pointer; }
+.tree-dot { stroke: #fff; stroke-width: 1.5px; pointer-events: none; }
+.tree-dot.selected { stroke: var(--text-dark); stroke-width: 2.5px; }
+
+#tree-selected:empty { display: none; }
+.tree-selected-head { margin: 14px 0 4px; }
+.tree-selected-head .title { font-size: 15px; font-weight: 700; }
+.tree-selected-head .meta { font-size: 12px; color: #8b7e76; margin-top: 2px; }
+
+#tree-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 12px 0;
+}
+.tree-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #63564f;
+}
+.tree-legend-item .meta { color: #8b7e76; }
+.tree-legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+#tree-summary { margin-top: 20px; }
+
+/* time axis of a dated tree */
+.tree-grid { stroke: #eae0db; stroke-width: 1; stroke-dasharray: 2 3; }
+.tree-axis { stroke: #9a8b82; stroke-width: 1; }
+.tree-tick { font-size: 8.5px; fill: #8b7e76; }
+.tree-axis-caption { font-size: 9px; }
+
+/* Edibility / toxicity scores + the do-not-eat warning */
+.safety { margin: 8px 0; padding: 8px 10px; border-radius: 8px; background: #f3ebe6; border: 1px solid #e2d3ca; }
+.score-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 12px; }
+.score-row.muted { opacity: 0.45; }
+.score-name { flex: 0 0 74px; font-weight: 700; }
+.score-label { flex: 1; min-width: 0; }
+.score-sub { display: block; font-size: 11px; color: #74675f; margin: 1px 0 2px; }
+.score-notes { font-size: 12px; margin: 6px 0 2px; }
+.score-dots { display: inline-flex; gap: 3px; flex: 0 0 auto; }
+.score-dots .dot { width: 9px; height: 9px; border-radius: 50%; background: #e2d6cf; }
+.score-dots.edi .dot.on { background: #4f7a3a; }
+.score-dots.tox .dot.on { background: #b3261e; }
+.score-dots.conf .dot.on { background: #8a624b; }
+.lookalikes { margin: 2px 0 4px; padding-left: 18px; font-size: 12px; }
+.eat-warning { margin: 6px 0 0; padding: 6px 8px; border-radius: 6px; background: #fbf1dc; border-left: 3px solid #d39a3a; color: #5c4214; font-size: 12px; font-weight: 600; line-height: 1.35; }

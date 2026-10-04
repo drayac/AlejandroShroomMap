@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: shroommap
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-shroommap}
+      POSTGRES_DB: shroommap
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shroommap"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    networks:
+      - internal
+
+  api:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg://shroommap:${POSTGRES_PASSWORD:-shroommap}@db:5432/shroommap
+      ADD_LEAF_PASSPHRASES: ${ADD_LEAF_PASSPHRASES:-changeme:Someone}
+      GEMINI_API_KEYS: ${GEMINI_API_KEYS:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
+      GEMINI_DAILY_LIMIT_PER_KEY: ${GEMINI_DAILY_LIMIT_PER_KEY:-40}
+      UPLOADS_DIR: /data/uploads
+    volumes:
+      - uploads_data:/data/uploads
+    ports:
+      # 8012: 8010 Rock Map, 8011 Plant Map, 8012 Shroom Map, 8013 Animal Map share one host.
+      - "127.0.0.1:8012:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - internal
+
+networks:
+  internal:
+
+volumes:
+  uploads_data:

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <rect width="100" height="100" rx="20" fill="#2b1f1a"/>
+  <!-- drawn rather than an emoji, so it looks the same on every device -->
+  <path d="M40 56 L60 56 L57 82 Q50 88 43 82 Z" fill="#f0e6d2"/>
+  <path d="M14 58 C 14 32 32 16 50 16 C 68 16 86 32 86 58 Q50 66 14 58 Z" fill="#d9573b"/>
+  <circle cx="34" cy="38" r="5" fill="#fff6e8"/><circle cx="55" cy="30" r="4" fill="#fff6e8"/>
+  <circle cx="68" cy="44" r="5" fill="#fff6e8"/><circle cx="46" cy="49" r="3" fill="#fff6e8"/>
+</svg>

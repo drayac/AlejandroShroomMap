@@ -1,0 +1,8 @@
+.env
+# Only the repo-root data/ (the Postgres bind mount) - NOT backend/data/, which
+# holds the dated tree the backend needs and must be committed.
+/data/
+__pycache__/
+*.pyc
+.DS_Store
+_to_delete/
