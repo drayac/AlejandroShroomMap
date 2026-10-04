@@ -21,8 +21,8 @@ Ascomycota are unplaced (Open Tree fallback).
 - Ports: Rock 8010, Plant 8011, **this app 8012**. DB/user name `shroommap`. Frontend at
   `/var/www/html/alejandroshroommap/frontend/`. Hostname `shroommap.217-154-218-125.sslip.io` (placeholder
   following the other apps' pattern).
-- Gemini: ONE key (40/day) shared by four apps, split from 2026-10-04 until further notice as
-  Shroom 15, Animal 10, Plant 10, Rock 5 (`GEMINI_DAILY_LIMIT_PER_KEY` in each app's `.env`; this app: 15).
+- Gemini: ONE key (40/day) shared by four apps, split (since 2026-10-04, until further notice) as
+  Shroom 25, Animal 6, Plant 6, Rock 3 (`GEMINI_DAILY_LIMIT_PER_KEY` in each app's `.env`; this app: 25).
   Each app counts only its own calls, so the four values must keep summing to the key's real limit.
 - The AI answer is never trusted as typed: names go through the GBIF backbone with the kingdom filter; a
   kingdom-only match counts as unresolved.

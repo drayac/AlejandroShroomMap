@@ -17,7 +17,7 @@ rsync -az --delete --exclude .env --exclude /data/ --exclude _to_delete/ --exclu
     AlejandroShroomMap/ root@217.154.218.125:/root/apps/AlejandroShroomMap/
 # on the server, in /root/apps/AlejandroShroomMap
 cp .env.example .env && chmod 600 .env   # POSTGRES_PASSWORD random, ADD_LEAF_PASSPHRASES, GEMINI_API_KEYS
-                                         # (same shared key as the Plant Map), GEMINI_DAILY_LIMIT_PER_KEY=15
+                                         # (same shared key as the Plant Map), GEMINI_DAILY_LIMIT_PER_KEY=25
 docker-compose up -d --build && curl http://127.0.0.1:8012/api/health
 mkdir -p /var/www/html/alejandroshroommap && rsync -a --delete frontend/ /var/www/html/alejandroshroommap/frontend/
 chown -R www-data:www-data /var/www/html/alejandroshroommap
