@@ -14,18 +14,25 @@ services:
       timeout: 3s
       retries: 10
     networks:
-      - internal
+      internal:
+        # A name of its own: the api is also on the shared ai_credits network, where "db" is
+        # Naturalia's database.
+        aliases: [shroommap-db]
 
   api:
     build: ./backend
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+psycopg://shroommap:${POSTGRES_PASSWORD:-shroommap}@db:5432/shroommap
+      DATABASE_URL: postgresql+psycopg://shroommap:${POSTGRES_PASSWORD:-shroommap}@shroommap-db:5432/shroommap
       ADD_LEAF_PASSPHRASES: ${ADD_LEAF_PASSPHRASES:-changeme:Someone}
       GEMINI_API_KEYS: ${GEMINI_API_KEYS:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
       GEMINI_DAILY_LIMIT_PER_KEY: ${GEMINI_DAILY_LIMIT_PER_KEY:-40}
       UPLOADS_DIR: /data/uploads
+      # Shared Gemini credit ledger in Naturalia's database (see shared_credits.py); empty = count
+      # only this app's own calls.
+      CREDITS_DATABASE_URL: ${CREDITS_DATABASE_URL:-}
+      GEMINI_GLOBAL_LIMIT: ${GEMINI_GLOBAL_LIMIT:-40}
     volumes:
       - uploads_data:/data/uploads
     ports:
@@ -36,9 +43,12 @@ services:
         condition: service_healthy
     networks:
       - internal
+      - ai_credits
 
 networks:
   internal:
+  ai_credits:
+    external: true
 
 volumes:
   uploads_data:

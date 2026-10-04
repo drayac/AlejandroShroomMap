@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 import ecology
 import taxonomy
+import shared_credits
 from config import settings
 from models import AiUsage
 
@@ -131,11 +132,30 @@ def _usage_by_key(db: Session) -> dict[int, int]:
     return {r.key_index: r.count for r in rows}
 
 
+# The Gemini key is shared with Naturalia and the other maps: every call is recorded in a shared
+# ledger (shared_credits.py) under its group, and this app may use at most its own daily limit for
+# its group ("fungus") - counting that group's calls made in Naturalia - and never more than what is
+# left of the key's global limit. Without the ledger it falls back to counting its own calls.
+APP, KIND = "shroommap", "fungus"
+
+
+def _shared_remaining() -> int | None:
+    if not shared_credits.enabled():
+        return None
+    try:
+        return shared_credits.remaining(KIND, settings.gemini_daily_limit_per_key)
+    except Exception:
+        return None  # ledger unreachable: count locally
+
+
 def credits_status(db: Session) -> dict:
     keys = settings.gemini_keys
     limit_per_key = settings.gemini_daily_limit_per_key
     usage = _usage_by_key(db)
     remaining = sum(max(0, limit_per_key - usage.get(i, 0)) for i in range(len(keys)))
+    shared = _shared_remaining()
+    if shared is not None:
+        remaining = min(remaining, shared)
     return {
         "configured": len(keys) > 0,
         "remaining": remaining,
@@ -277,7 +297,8 @@ def identify_leaf(db: Session, image_bytes: bytes, lat: float, lon: float) -> di
     usage = _usage_by_key(db)
     limit = settings.gemini_daily_limit_per_key
     candidates = [i for i in range(len(keys)) if usage.get(i, 0) < limit]
-    if not candidates:
+    shared = _shared_remaining()
+    if not candidates or shared == 0:
         raise HTTPException(status_code=429, detail="No AI credits left today")
 
     # The two location lookups are independent network calls - run them together.
@@ -331,6 +352,11 @@ def identify_leaf(db: Session, image_bytes: bytes, lat: float, lon: float) -> di
             text = data["candidates"][0]["content"]["parts"][0]["text"]
             result = json.loads(text)
             _increment_usage(db, i)
+            if shared is not None:
+                try:
+                    shared_credits.record(APP, KIND)
+                except Exception:
+                    pass  # the call succeeded; a missed ledger entry must not lose the answer
             return _shape_result(result, ecosystem, len(local))
         except HTTPException:
             raise
